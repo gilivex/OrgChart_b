@@ -16,11 +16,10 @@ namespace ariel
     private:
         struct Node
         {
-
             string data;
             vector<Node *> children;
             int rank;
-            explicit Node(string val, int r)
+            explicit Node(string &val, int r)
             {
                 this->data = val;
                 this->rank = r;
@@ -28,8 +27,7 @@ namespace ariel
         };
 
         Node *root;
-        unordered_map<int, vector<Node *>> level;
-        void copy_tree(Node **n, Node *copy, unordered_map<int, vector<Node *>> level);
+        void copy_tree(Node **n, Node *copy);
 
     public:
         OrgChart()
@@ -39,11 +37,12 @@ namespace ariel
 
         OrgChart(OrgChart &org)
         {
+            this->root = nullptr;
             if (org.root == nullptr)
             {
                 return;
             }
-            copy_tree(&this->root, org.root, this->level);
+            copy_tree(&this->root, org.root);
         };
 
         OrgChart(OrgChart &&org) noexcept
@@ -51,25 +50,25 @@ namespace ariel
             this->root = org.root;
             org.root = nullptr;
         };
-        OrgChart &operator=( OrgChart &&org) noexcept;
+        OrgChart &operator=(OrgChart &&org) noexcept;
 
         OrgChart &operator=(const OrgChart &org);
 
-        OrgChart &add_root(const string &s);
+        OrgChart &add_root(const string &root);
 
         class iterator
         {
         private:
             Node *curr;
             queue<Node *> byOrder;
-            void level_order(unordered_map<int, vector<Node *>> &level);
+            void level_order(Node *root);
 
-            void revers_order(unordered_map<int, vector<Node *>> &level);
+            void revers_order(Node *root);
 
             void preorder(Node *root);
 
         public:
-            explicit iterator(int type, unordered_map<int, vector<Node *>> &level, Node *start = nullptr)
+            explicit iterator(int type, Node *start = nullptr)
             {
                 curr = start;
                 if (curr != nullptr)
@@ -77,10 +76,10 @@ namespace ariel
                     switch (type)
                     {
                     case 1:
-                        level_order(level);
+                        level_order(start);
                         break;
                     case 2:
-                        revers_order(level);
+                        revers_order(start);
                         break;
                     case 3:
                         preorder(start);
@@ -101,7 +100,7 @@ namespace ariel
 
             bool operator!=(const iterator &itr) const;
 
-            string &operator*();
+            string operator*();
 
             string *operator->();
 

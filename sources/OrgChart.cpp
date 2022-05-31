@@ -1,34 +1,29 @@
 #include <iostream>
 #include <sstream>
+#include <stack>
 using namespace std;
 #include "OrgChart.hpp"
 using namespace ariel;
 
 namespace ariel
 {
-    void OrgChart::copy_tree(Node **n, Node *copy, unordered_map<int, vector<Node *>> level)
+    void OrgChart::copy_tree(Node **n, Node *copy)
     {
         if (copy == nullptr)
         {
             return;
         }
         *n = new Node(copy->data, copy->rank);
-        if (level.find(copy->rank) == level.end())
-        {
-            vector<Node *> my_copy_rank;
-            level[copy->rank] = my_copy_rank;
-        }
-        level[copy->rank].push_back(*n);
 
         for (size_t i = 0; i <= copy->children.size(); i++)
         {
             if (i == copy->children.size())
             {
-                copy_tree(nullptr, nullptr, level);
+                copy_tree(nullptr, nullptr);
             }
             else
             {
-                copy_tree(&((*n)->children[i]), copy->children[i], level);
+                copy_tree(&((*n)->children[i]), copy->children[i]);
             }
         }
     }
@@ -45,24 +40,22 @@ namespace ariel
     {
         if (this != &org)
         {
-            copy_tree(&this->root, org.root, this->level);
+            copy_tree(&this->root, org.root);
         }
         return *this;
     }
 
-    OrgChart &OrgChart::add_root(const string &s)
+    OrgChart &OrgChart::add_root(const string &root)
     {
         if (this->root == nullptr)
         {
+            string s = root;
             Node *node = new Node(s, 0);
-            root = node;
-            vector<Node *> lev;
-            this->level[0] = lev;
-            this->level[0].push_back(root);
+            this->root = node;
         }
         else
         {
-            this->root->data = s;
+            this->root->data = root;
         }
         return *this;
     }
@@ -79,14 +72,9 @@ namespace ariel
             if (*it == parent)
             {
                 int rank = it.get_rank() + 1;
-                Node *child = new Node(son, rank);
+                string s = son;
+                Node *child = new Node(s, rank);
                 it.get_curr()->children.push_back(child);
-                if (level.find(rank) == level.end())
-                {
-                    vector<Node *> son_rank;
-                    level[rank] = son_rank;
-                }
-                level[rank].push_back(child);
                 flag = true;
             }
         }
@@ -104,7 +92,7 @@ namespace ariel
             throw invalid_argument{"not exist"};
         }
 
-        return OrgChart::iterator(1, level, root);
+        return OrgChart::iterator(1, root);
     }
 
     OrgChart::iterator OrgChart::end_level_order()
@@ -114,7 +102,7 @@ namespace ariel
             throw invalid_argument{"not exist"};
         }
         // because the default is null no nedeed to send start Node
-        return OrgChart::iterator(1, level);
+        return OrgChart::iterator(1);
     }
 
     OrgChart::iterator OrgChart::begin_reverse_order()
@@ -123,7 +111,7 @@ namespace ariel
         {
             throw invalid_argument{"not exist"};
         }
-        return OrgChart::iterator(2, level, root);
+        return OrgChart::iterator(2, root);
     }
 
     OrgChart::iterator OrgChart::reverse_order()
@@ -134,7 +122,7 @@ namespace ariel
         }
         // because the default is null no nedeed to send start Node
 
-        return OrgChart::iterator(2, level);
+        return OrgChart::iterator(2);
     }
 
     OrgChart::iterator OrgChart::begin_preorder()
@@ -143,7 +131,7 @@ namespace ariel
         {
             throw invalid_argument{"not exist"};
         }
-        return OrgChart::iterator(3, level, root);
+        return OrgChart::iterator(3, root);
     }
 
     OrgChart::iterator OrgChart::end_preorder()
@@ -154,7 +142,7 @@ namespace ariel
         }
         // because the default is null no nedeed to send start Node
 
-        return OrgChart::iterator(3, level);
+        return OrgChart::iterator(3);
     }
 
     // workes like level_order
@@ -164,7 +152,7 @@ namespace ariel
         {
             throw invalid_argument{"not exist"};
         }
-        return OrgChart::iterator(1, level, root);
+        return OrgChart::iterator(1, root);
     }
 
     OrgChart::iterator OrgChart::end()
@@ -173,18 +161,23 @@ namespace ariel
         {
             throw invalid_argument{"not exist"};
         }
-        return OrgChart::iterator(1, level);
+        return OrgChart::iterator(1);
     }
 
     ostream &operator<<(ostream &os, OrgChart &org)
     {
-        for (int i = 0; org.level.find(i) != org.level.end(); i++)
+        int r = 0;
+        for (OrgChart::iterator it = org.begin(); it != org.end(); it++)
         {
-            for (size_t j = 0; j < org.level[i].size(); j++)
+            if (it.get_rank() != r)
             {
-                os << org.level[i][j]->data << "\t";
+                os << endl;
+                r++;
             }
-            os << endl;
+            else
+            {
+                os << it << " ";
+            }
         }
 
         return os;
@@ -192,29 +185,59 @@ namespace ariel
 
     ////////////////iterator func///////////////
 
-    void OrgChart::iterator::level_order(unordered_map<int, vector<Node *>> &level)
+    void OrgChart::iterator::level_order(Node *root)
     {
-        for (int i = 0; level.find(i) != level.end(); i++)
+        queue<Node *> temp;
+        temp.push(root);
+        while (!temp.empty())
         {
-            for (size_t j = 0; j < level[i].size(); j++)
+            Node *out = temp.front();
+            temp.pop();
+            for (Node *n : out->children)
             {
-                byOrder.push(level[i][j]);
+                temp.push(n);
             }
+            byOrder.push(out);
         }
     }
 
-    void OrgChart::iterator::revers_order(unordered_map<int, vector<Node *>> &level)
+    void OrgChart::iterator::revers_order(Node *root)
     {
-        int counter = 0;
-        while (level.find(counter) != level.end())
+        queue<Node *> temp;
+        stack<Node *> rev;
+        temp.push(root);
+        while (!temp.empty())
         {
-            counter++;
-        }
-        for (int i = counter - 1; i >= 0; i--)
-        {
-            for (size_t j = 0; j < level[i].size(); j++)
+            Node *out = temp.front();
+            temp.pop();
+            for (Node *n : out->children)
             {
-                byOrder.push(level[i][j]);
+                temp.push(n);
+            }
+            rev.push(out);
+        }
+        stack<Node *> temp_rev;
+        int r = rev.top()->rank;
+        while (!rev.empty())
+        {
+            if (rev.top()->rank != r)
+            {
+                while (!temp_rev.empty())
+                {
+                    byOrder.push(temp_rev.top());
+                    temp_rev.pop();
+                }
+                r--;
+            }
+            else
+            {
+                temp_rev.push(rev.top());
+                rev.pop();
+            }
+            if (rev.empty())
+            {
+                byOrder.push(temp_rev.top());
+                temp_rev.pop();
             }
         }
     }
@@ -269,18 +292,27 @@ namespace ariel
         return curr != itr.curr;
     }
 
-    string &OrgChart::iterator::operator*()
+    string OrgChart::iterator::operator*()
     {
-        return this->curr->data;
+        if (curr != nullptr)
+        {
+            return this->curr->data;
+        }
+        return "";
     }
 
     string *OrgChart::iterator::operator->()
     {
         return &(this->curr->data);
     }
+
     int OrgChart::iterator::get_rank()
     {
-        return this->curr->rank;
+        if (curr != nullptr)
+        {
+            return this->curr->rank;
+        }
+        return -1;
     }
 
     ostream &operator<<(ostream &os, const OrgChart::iterator &itr)
